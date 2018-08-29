@@ -79,6 +79,11 @@ EXTERN(void) jpeg_make_d_derived_tbl
 typedef size_t bit_buf_type;            /* type of bit-extraction buffer */
 #define BIT_BUF_SIZE  64                /* size of buffer in bits */
 
+#elif defined (__x86_64__) && defined(__ILP32__)
+
+typedef unsigned long long bit_buf_type;/* type of bit-extraction buffer */
+#define BIT_BUF_SIZE  64                /* size of buffer in bits */
+
 #else
 
 typedef unsigned long bit_buf_type;     /* type of bit-extraction buffer */

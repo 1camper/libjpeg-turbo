@@ -33,6 +33,9 @@ case "$host_os" in
   linux*aout*)
     objfmt='a.out'
   ;;
+  linux*x32)
+    objfmt='ELFX32'
+  ;;
   linux*)
     case "$host_cpu" in
       x86_64)
@@ -97,6 +100,7 @@ case "$objfmt" in
   a.out)      NAFLAGS='-faout -DAOUT';;
   BSD-a.out)  NAFLAGS='-faoutb -DAOUT';;
   ELF)        NAFLAGS='-felf -DELF';;
+  ELFX32)     NAFLAGS='-felfx32 -DELF -D__x86_64__';;
   ELF64)      NAFLAGS='-felf64 -DELF -D__x86_64__';;
   RDF)        NAFLAGS='-frdf -DRDF';;
   Mach-O)     NAFLAGS='-fmacho -DMACHO';;
