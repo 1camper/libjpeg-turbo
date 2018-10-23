@@ -119,32 +119,35 @@ PW_DESCALE_P2X times 8 dw  1 << (PASS1_BITS - 1)
 %xdefine m%2 %%tmp
 %endmacro
 
+%ifdef WIN64
+%macro IFWIN64 1+
+    %1
+%endmacro
+%else
+%macro IFWIN64 1+.nolist
+%endmacro
+%endif
+
     align       32
     GLOBAL_FUNCTION(jsimd_fdct_islow_sse2)
 
 EXTN(jsimd_fdct_islow_sse2):
 %ifdef WIN64
     %define     data rcx
-    mov         rdx, rsp
-    add         rsp, 8 - 8 * SIZEOF_XMMWORD
-    movaps      [rdx + 8 - 8 * SIZEOF_XMMWORD], xmm6
-    movaps      [rdx + 8 - 7 * SIZEOF_XMMWORD], xmm7
-    movaps      [rdx + 8 - 6 * SIZEOF_XMMWORD], xmm8
-    movaps      [rdx + 8 - 5 * SIZEOF_XMMWORD], xmm9
-    movaps      [rdx + 8 - 4 * SIZEOF_XMMWORD], xmm10
-    movaps      [rdx + 8 - 3 * SIZEOF_XMMWORD], xmm11
-    movaps      [rdx + 8 - 2 * SIZEOF_XMMWORD], xmm12
-    movaps      [rdx + 8 + 0 * SIZEOF_XMMWORD], xmm13 ; shadow space
-    movaps      [rdx + 8 + 1 * SIZEOF_XMMWORD], xmm14
 %else
     %define     data rdi
 %endif
-
     ; ---- Pass 1: process rows.
 
     movaps      m0, XMMWORD [XMMBLOCK(0,0,data,SIZEOF_DCTELEM)]
+
+    IFWIN64 mov         rdx, rsp
+
     movaps      m1, XMMWORD [XMMBLOCK(1,0,data,SIZEOF_DCTELEM)]
     movaps      m2, XMMWORD [XMMBLOCK(2,0,data,SIZEOF_DCTELEM)]
+
+    IFWIN64 add         rsp, 8 - 8 * SIZEOF_XMMWORD
+
     movaps      m3, XMMWORD [XMMBLOCK(3,0,data,SIZEOF_DCTELEM)]
 
     ; m0=(00 01 02 03 04 05 06 07), m2=(20 21 22 23 24 25 26 27)
@@ -153,19 +156,30 @@ EXTN(jsimd_fdct_islow_sse2):
     lea         raxp, [rel const_ref]
 
     movdqa      m4, m0                   ; transpose coefficients(phase 1)
+
+    IFWIN64 movaps      [rdx + 8 + 0 * SIZEOF_XMMWORD], xmm6 ; shadow space
+
     punpcklwd   m0, m1                   ; m0=(00 10 01 11 02 12 03 13)
     punpckhwd   m4, m1                   ; m4=(04 14 05 15 06 16 07 17)
     movdqa      m5, m2                   ; transpose coefficients(phase 1)
+
+    IFWIN64 movaps      [rdx + 8 - 7 * SIZEOF_XMMWORD], xmm7
+
     punpcklwd   m2, m3                   ; m2=(20 30 21 31 22 32 23 33)
     punpckhwd   m5, m3                   ; m5=(24 34 25 35 26 36 27 37)
 
     movaps      m6, XMMWORD [XMMBLOCK(4,0,data,SIZEOF_DCTELEM)]
+
+    IFWIN64 movaps      [rdx + 8 - 6 * SIZEOF_XMMWORD], xmm8
+
     movaps      m7, XMMWORD [XMMBLOCK(5,0,data,SIZEOF_DCTELEM)]
     movaps      m1, XMMWORD [XMMBLOCK(6,0,data,SIZEOF_DCTELEM)]
     movaps      m3, XMMWORD [XMMBLOCK(7,0,data,SIZEOF_DCTELEM)]
 
     ; m6=( 4 12 20 28 36 44 52 60), m1=( 6 14 22 30 38 46 54 62)
     ; m7=( 5 13 21 29 37 45 53 61), m3=( 7 15 23 31 39 47 55 63)
+
+    IFWIN64 movaps      [rdx + 8 - 5 * SIZEOF_XMMWORD], xmm9
 
     SWAP  8, 2 ; movdqa      m8, m2      ; m8=(20 30 21 31 22 32 23 33)  ;  0  1  8  3  4  5  6  7    2  9 10 11 12 13 14
     SWAP  9, 5 ; movdqa      m9, m5      ; m9=(24 34 25 35 26 36 27 37)  ;  0  1  8  3  4  9  6  7    2  5 10 11 12 13 14
@@ -234,13 +248,20 @@ EXTN(jsimd_fdct_islow_sse2):
     movdqa      m4, m3
     movdqa      m0, m6
     paddw       m3, m1                   ; m3=tmp10
+
+    IFWIN64 movaps      [rdx + 8 - 2 * SIZEOF_XMMWORD], xmm12
+
     paddw       m6, m7                   ; m6=tmp11
     psubw       m4, m1                   ; m4=tmp13
     psubw       m0, m7                   ; m0=tmp12
 
+    IFWIN64 movaps      [rdx + 8 - 8 * SIZEOF_XMMWORD], xmm13
+
     movdqa      m1, m3
     paddw       m3, m6                   ; m3=tmp10+tmp11
     psubw       m1, m6                   ; m1=tmp10-tmp11
+
+    IFWIN64 movaps      [rdx + 8 + 1 * SIZEOF_XMMWORD], xmm14
 
     psllw       m3, PASS1_BITS           ; m3=data0
     psllw       m1, PASS1_BITS           ; m1=data4
@@ -274,9 +295,14 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m4, m13                  ; m4=data6L
     pmaddwd     m0, m13                  ; m0=data6H
 
+    IFWIN64 movaps      [rdx + 8 - 4 * SIZEOF_XMMWORD], xmm10
+
     paddd       m7, m14
     paddd       m6, m14
     psrad       m7, DESCALE_P1
+
+    IFWIN64 movaps      [rdx + 8 - 3 * SIZEOF_XMMWORD], xmm11
+
     psrad       m6, DESCALE_P1
     paddd       m4, m14
     paddd       m0, m14
@@ -287,8 +313,8 @@ EXTN(jsimd_fdct_islow_sse2):
     packssdw    m4, m0                   ; m4=data6
 
     SWAP 10, 3 ; movdqa      m10, m3     ; m10=data0                     ;  1  5  7 10  4  8  6  9    2  0  3 11 12 13 14
-    SWAP 11, 7 ; movdqa      m12, m7     ; m12=data2                     ;  1  5  7 10  4  8  6 11    2  0  3  9 12 13 14
-    SWAP 12, 1 ; movdqa      m11, m1     ; m11=data4                     ;  1 12  7 10  4  8  6 11    2  0  3  9  5 13 14
+    SWAP 11, 7 ; movdqa      m11, m7     ; m11=data2                     ;  1  5  7 10  4  8  6 11    2  0  3  9 12 13 14
+    SWAP 12, 1 ; movdqa      m12, m1     ; m12=data4                     ;  1 12  7 10  4  8  6 11    2  0  3  9  5 13 14
     SWAP 13, 4 ; movdqa      m13, m4     ; m13=data6                     ;  1 12  7 10 13  8  6 11    2  0  3  9  5  4 14
 
     ; -- Odd part
@@ -406,7 +432,7 @@ EXTN(jsimd_fdct_islow_sse2):
     ; ---- Pass 2: process columns.
 
     SWAP 10, 6 ; movdqa      m6, m10     ; m6=col0                       ;  1  0  7  2 12  8  3 10   11 13  6  9  5  4 14
-    SWAP 11, 0 ; movdqa      m0, m12     ; m0=col2                       ;  9  0  7  2 12  8  3 10   11 13  6  1  5  4 14
+    SWAP 11, 0 ; movdqa      m0, m11     ; m0=col2                       ;  9  0  7  2 12  8  3 10   11 13  6  1  5  4 14
 
     ; m6=(00 10 20 30 40 50 60 70), m0=(02 12 22 32 42 52 62 72)
     ; m2=(01 11 21 31 41 51 61 71), m5=(03 13 23 33 43 53 63 73)
@@ -418,11 +444,13 @@ EXTN(jsimd_fdct_islow_sse2):
     punpcklwd   m0, m5                   ; m0=(02 03 12 13 22 23 32 33)
     punpckhwd   m3, m5                   ; m3=(42 43 52 53 62 63 72 73)
 
-    SWAP 12, 2 ; movdqa      m2, m11     ; m2=col4                       ;  9  0  5  2 12  8  3 10   11 13  6  1  7  4 14
+    SWAP 12, 2 ; movdqa      m2, m12     ; m2=col4                       ;  9  0  5  2 12  8  3 10   11 13  6  1  7  4 14
     SWAP 13, 5 ; movdqa      m5, m13     ; m5=col6                       ;  9  0  5  2 12  4  3 10   11 13  6  1  7  8 14
 
     ; m2=(04 14 24 34 44 54 64 74), m5=(06 16 26 36 46 56 66 76)
     ; m4=(05 15 25 35 45 55 65 75), m7=(07 17 27 37 47 57 67 77)
+
+    IFWIN64 movaps      xmm8, [rdx + 8 - 6 * SIZEOF_XMMWORD] ; m13
 
     SWAP 10, 0 ; movdqa      m10, m0     ; m10=(02 03 12 13 22 23 32 33) ;  6  0  5  2 12  4  3 10   11 13  9  1  7  8 14
     SWAP 11, 3 ; movdqa      m11, m3     ; m11=(42 43 52 53 62 63 72 73) ;  6  0  5  1 12  4  3 10   11 13  9  2  7  8 14
@@ -435,6 +463,8 @@ EXTN(jsimd_fdct_islow_sse2):
     punpckhwd   m3, m7                   ; m3=(46 47 56 57 66 67 76 77)
 
     SWAP 12, 4                                                           ;  6  0  5  1  7  4  3 10   11 13  9  2 12  8 14
+
+    IFWIN64 movaps      xmm12, [rdx + 8 - 2 * SIZEOF_XMMWORD] ; m12
 
     movdqa      m4, m2                   ; transpose coefficients(phase 2)
     punpckldq   m2, m5                   ; m2=(04 05 06 07 14 15 16 17)
@@ -645,6 +675,9 @@ EXTN(jsimd_fdct_islow_sse2):
     packssdw    m0, m5                   ; m0=data1
 
     movaps      XMMWORD [XMMBLOCK(7,0,data,SIZEOF_DCTELEM)], m4
+
+    IFWIN64 movaps      xmm11, [rdx + 8 - 3 * SIZEOF_XMMWORD] ; m4
+
     movaps      XMMWORD [XMMBLOCK(1,0,data,SIZEOF_DCTELEM)], m0
 
     movdqa      m1, m3
@@ -656,27 +689,42 @@ EXTN(jsimd_fdct_islow_sse2):
     punpckhwd   m5, m7
     movdqa      m3, m1
 
-    movaps      m10, XMMWORD [REL(PW_MF256_F050)]
+    movaps      m0, XMMWORD [REL(PW_MF256_F050)]
 
     movdqa      m7, m5
     pmaddwd     m1, m9                   ; m1=tmp5L
     pmaddwd     m5, m9                   ; m5=tmp5H
-    pmaddwd     m3, m10                  ; m3=tmp6L
-    pmaddwd     m7, m10                  ; m7=tmp6H
+
+    IFWIN64 movaps      xmm13, [rdx + 8 - 8 * SIZEOF_XMMWORD] ; m9
+
+    pmaddwd     m3, m0                   ; m3=tmp6L
+    pmaddwd     m7, m0                   ; m7=tmp6H
 
     paddd       m1, m2                   ; m1=data5L
+
+    IFWIN64 movaps      xmm10, [rdx + 8 - 4 * SIZEOF_XMMWORD] ; m10
+
     paddd       m5, m6                   ; m5=data5H
     paddd       m3, m8                   ; m3=data3L
 
     SWAP 11, 7                                                           ;  7  1  5  6 11  3  2  0    4 13 10  9 12  8 14
     paddd       m7, m11                  ; m7=data3H
 
+    IFWIN64 movaps      xmm9, [rdx + 8 - 5 * SIZEOF_XMMWORD] ; m11
+
     paddd       m1, m14
     paddd       m5, m14
     psrad       m1, DESCALE_P2
+
+    IFWIN64 movaps      xmm7, [rdx + 8 - 7 * SIZEOF_XMMWORD] ; m0
+    IFWIN64 mov         rsp, rdx
+
     psrad       m5, DESCALE_P2
     paddd       m3, m14
     paddd       m7, m14
+
+    IFWIN64 movaps      xmm14, [rdx + 8 + 1 * SIZEOF_XMMWORD] ; m14
+
     psrad       m3, DESCALE_P2
     psrad       m7, DESCALE_P2
 
@@ -686,18 +734,7 @@ EXTN(jsimd_fdct_islow_sse2):
     movaps      XMMWORD [XMMBLOCK(5,0,data,SIZEOF_DCTELEM)], m1
     movaps      XMMWORD [XMMBLOCK(3,0,data,SIZEOF_DCTELEM)], m3
 
-%ifdef WIN64
-    movaps      xmm6, [rdx + 8 - 8 * SIZEOF_XMMWORD]
-    movaps      xmm7, [rdx + 8 - 7 * SIZEOF_XMMWORD]
-    movaps      xmm8, [rdx + 8 - 6 * SIZEOF_XMMWORD]
-    movaps      xmm9, [rdx + 8 - 5 * SIZEOF_XMMWORD]
-    movaps      xmm10, [rdx + 8 - 4 * SIZEOF_XMMWORD]
-    movaps      xmm11, [rdx + 8 - 3 * SIZEOF_XMMWORD]
-    movaps      xmm12, [rdx + 8 - 2 * SIZEOF_XMMWORD]
-    movaps      xmm13, [rdx + 8 + 0 * SIZEOF_XMMWORD]
-    movaps      xmm14, [rdx + 8 + 1 * SIZEOF_XMMWORD]
-    mov         rsp, rdx
-%endif
+    IFWIN64 movaps      xmm6, [rdx + 8 + 0 * SIZEOF_XMMWORD] ; m3
     ret
 
 ; For some reason, the OS X linker does not honor the request to align the
