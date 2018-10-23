@@ -129,13 +129,13 @@ EXTN(jsimd_fdct_islow_sse2):
     collect_args 1
 
     ; ---- Pass 1: process rows.
+%define data rdx
+    mov         data, r10                ; (DCTELEM *)
 
-    mov         rdx, r10                ; (DCTELEM *)
-
-    movdqa      m0, XMMWORD [XMMBLOCK(0,0,rdx,SIZEOF_DCTELEM)]
-    movdqa      m1, XMMWORD [XMMBLOCK(1,0,rdx,SIZEOF_DCTELEM)]
-    movdqa      m2, XMMWORD [XMMBLOCK(2,0,rdx,SIZEOF_DCTELEM)]
-    movdqa      m3, XMMWORD [XMMBLOCK(3,0,rdx,SIZEOF_DCTELEM)]
+    movdqa      m0, XMMWORD [XMMBLOCK(0,0,data,SIZEOF_DCTELEM)]
+    movdqa      m1, XMMWORD [XMMBLOCK(1,0,data,SIZEOF_DCTELEM)]
+    movdqa      m2, XMMWORD [XMMBLOCK(2,0,data,SIZEOF_DCTELEM)]
+    movdqa      m3, XMMWORD [XMMBLOCK(3,0,data,SIZEOF_DCTELEM)]
 
     ; m0=(00 01 02 03 04 05 06 07), m2=(20 21 22 23 24 25 26 27)
     ; m1=(10 11 12 13 14 15 16 17), m3=(30 31 32 33 34 35 36 37)
@@ -147,10 +147,10 @@ EXTN(jsimd_fdct_islow_sse2):
     punpcklwd   m2, m3              ; m2=(20 30 21 31 22 32 23 33)
     punpckhwd   m5, m3              ; m5=(24 34 25 35 26 36 27 37)
 
-    movdqa      m6, XMMWORD [XMMBLOCK(4,0,rdx,SIZEOF_DCTELEM)]
-    movdqa      m7, XMMWORD [XMMBLOCK(5,0,rdx,SIZEOF_DCTELEM)]
-    movdqa      m1, XMMWORD [XMMBLOCK(6,0,rdx,SIZEOF_DCTELEM)]
-    movdqa      m3, XMMWORD [XMMBLOCK(7,0,rdx,SIZEOF_DCTELEM)]
+    movdqa      m6, XMMWORD [XMMBLOCK(4,0,data,SIZEOF_DCTELEM)]
+    movdqa      m7, XMMWORD [XMMBLOCK(5,0,data,SIZEOF_DCTELEM)]
+    movdqa      m1, XMMWORD [XMMBLOCK(6,0,data,SIZEOF_DCTELEM)]
+    movdqa      m3, XMMWORD [XMMBLOCK(7,0,data,SIZEOF_DCTELEM)]
 
     ; m6=( 4 12 20 28 36 44 52 60), m1=( 6 14 22 30 38 46 54 62)
     ; m7=( 5 13 21 29 37 45 53 61), m3=( 7 15 23 31 39 47 55 63)
@@ -477,8 +477,8 @@ EXTN(jsimd_fdct_islow_sse2):
     psraw       m7, PASS1_BITS        ; m7=data0
     psraw       m5, PASS1_BITS        ; m5=data4
 
-    movdqa      XMMWORD [XMMBLOCK(0,0,rdx,SIZEOF_DCTELEM)], m7
-    movdqa      XMMWORD [XMMBLOCK(4,0,rdx,SIZEOF_DCTELEM)], m5
+    movdqa      XMMWORD [XMMBLOCK(0,0,data,SIZEOF_DCTELEM)], m7
+    movdqa      XMMWORD [XMMBLOCK(4,0,data,SIZEOF_DCTELEM)], m5
 
     ; (Original)
     ; z1 = (tmp12 + tmp13) * 0.541196100;
@@ -512,8 +512,8 @@ EXTN(jsimd_fdct_islow_sse2):
     packssdw    m4, m2              ; m4=data2
     packssdw    m1, m6              ; m1=data6
 
-    movdqa      XMMWORD [XMMBLOCK(2,0,rdx,SIZEOF_DCTELEM)], m4
-    movdqa      XMMWORD [XMMBLOCK(6,0,rdx,SIZEOF_DCTELEM)], m1
+    movdqa      XMMWORD [XMMBLOCK(2,0,data,SIZEOF_DCTELEM)], m4
+    movdqa      XMMWORD [XMMBLOCK(6,0,data,SIZEOF_DCTELEM)], m1
 
     ; -- Odd part
 
@@ -592,8 +592,8 @@ EXTN(jsimd_fdct_islow_sse2):
     packssdw    m4, m1              ; m4=data7
     packssdw    m0, m5              ; m0=data1
 
-    movdqa      XMMWORD [XMMBLOCK(7,0,rdx,SIZEOF_DCTELEM)], m4
-    movdqa      XMMWORD [XMMBLOCK(1,0,rdx,SIZEOF_DCTELEM)], m0
+    movdqa      XMMWORD [XMMBLOCK(7,0,data,SIZEOF_DCTELEM)], m4
+    movdqa      XMMWORD [XMMBLOCK(1,0,data,SIZEOF_DCTELEM)], m0
 
     movdqa      m1, m3
     movdqa      m5, m3
@@ -623,8 +623,8 @@ EXTN(jsimd_fdct_islow_sse2):
     packssdw    m1, m5              ; m1=data5
     packssdw    m3, m7              ; m3=data3
 
-    movdqa      XMMWORD [XMMBLOCK(5,0,rdx,SIZEOF_DCTELEM)], m1
-    movdqa      XMMWORD [XMMBLOCK(3,0,rdx,SIZEOF_DCTELEM)], m3
+    movdqa      XMMWORD [XMMBLOCK(5,0,data,SIZEOF_DCTELEM)], m1
+    movdqa      XMMWORD [XMMBLOCK(3,0,data,SIZEOF_DCTELEM)], m3
 
     uncollect_args 1
     mov         rsp, rbp                ; rsp <- aligned rbp
