@@ -161,8 +161,8 @@ EXTN(jsimd_fdct_islow_sse2):
     ; m6=( 4 12 20 28 36 44 52 60), m1=( 6 14 22 30 38 46 54 62)
     ; m7=( 5 13 21 29 37 45 53 61), m3=( 7 15 23 31 39 47 55 63)
 
-    SWAP  8, 2 ; movdqa      m8, m2      ; m8=(20 30 21 31 22 32 23 33)
-    SWAP  9, 5 ; movdqa      m9, m5      ; m9=(24 34 25 35 26 36 27 37)
+    SWAP  8, 2 ; movdqa      m8, m2      ; m8=(20 30 21 31 22 32 23 33)  ;  0  1  8  3  4  5  6  7    2  9 10 11 12 13 14
+    SWAP  9, 5 ; movdqa      m9, m5      ; m9=(24 34 25 35 26 36 27 37)  ;  0  1  8  3  4  9  6  7    2  5 10 11 12 13 14
 
     movdqa      m2, m6                   ; transpose coefficients(phase 1)
     punpcklwd   m6, m7                   ; m6=(40 50 41 51 42 52 43 53)
@@ -178,10 +178,10 @@ EXTN(jsimd_fdct_islow_sse2):
     punpckldq   m2, m5                   ; m2=(44 54 64 74 45 55 65 75)
     punpckhdq   m3, m5                   ; m3=(46 56 66 76 47 57 67 77)
 
-    SWAP  8, 1 ; movdqa      m1, m8      ; m1=(20 30 21 31 22 32 23 33)
-    SWAP  9, 5 ; movdqa      m5, m9      ; m5=(24 34 25 35 26 36 27 37)
-    SWAP 10, 7 ; movdqa      m10, m7     ; m10=(42 52 62 72 43 53 63 73)
-    SWAP 11, 2 ; movdqa      m11, m2     ; m11=(44 54 64 74 45 55 65 75)
+    SWAP  8, 1 ; movdqa      m1, m8      ; m1=(20 30 21 31 22 32 23 33)  ;  0  2  8  3  4  9  6  7    1  5 10 11 12 13 14
+    SWAP  9, 5 ; movdqa      m5, m9      ; m5=(24 34 25 35 26 36 27 37)  ;  0  2  8  3  4  5  6  7    1  9 10 11 12 13 14
+    SWAP  9, 7 ; movdqa      m9, m7      ; m9=(42 52 62 72 43 53 63 73)  ;  0  2  8  3  4  5  6  9    1  7 10 11 12 13 14
+    SWAP  8, 2 ; movdqa      m8, m2      ; m8=(44 54 64 74 45 55 65 75)  ;  0  2  1  3  4  5  6  9    8  7 10 11 12 13 14
 
     movdqa      m7, m0                   ; transpose coefficients(phase 2)
     punpckldq   m0, m1                   ; m0=(00 10 20 30 01 11 21 31)
@@ -204,10 +204,10 @@ EXTN(jsimd_fdct_islow_sse2):
     paddw       m6, m2                   ; m6=data1+data6=tmp1
     paddw       m3, m5                   ; m3=data0+data7=tmp0
 
-    SWAP 10, 2 ; movdqa      m2, m10     ; m2=(42 52 62 72 43 53 63 73)
-    SWAP 11, 5 ; movdqa      m5, m11     ; m5=(44 54 64 74 45 55 65 75)
-    SWAP  8, 1 ; movdqa      m8, m1      ; m8=tmp6
-    SWAP  9, 0 ; movdqa      m9, m0      ; m9=tmp7
+    SWAP  9, 2 ; movdqa      m2, m9      ; m2=(42 52 62 72 43 53 63 73)  ;  0  2  7  3  4  5  6  9    8  1 10 11 12 13 14
+    SWAP  8, 5 ; movdqa      m5, m8      ; m5=(44 54 64 74 45 55 65 75)  ;  0  2  7  3  4  8  6  9    5  1 10 11 12 13 14
+    SWAP  8, 1 ; movdqa      m8, m1      ; m8=tmp6                       ;  0  5  7  3  4  8  6  9    2  1 10 11 12 13 14
+    SWAP  9, 0 ; movdqa      m9, m0      ; m9=tmp7                       ;  1  5  7  3  4  8  6  9    2  0 10 11 12 13 14
 
     movdqa      m1, m7                   ; transpose coefficients(phase 3)
     punpcklqdq  m7, m2                   ; m7=(02 12 22 32 42 52 62 72)=data2
@@ -238,9 +238,6 @@ EXTN(jsimd_fdct_islow_sse2):
 
     psllw       m3, PASS1_BITS           ; m3=data0
     psllw       m1, PASS1_BITS           ; m1=data4
-
-    SWAP 10, 3 ; movdqa      m10, m3     ; m10=data0
-    SWAP 11, 1 ; movdqa      m11, m1     ; m11=data4
 
     ; (Original)
     ; z1 = (tmp12 + tmp13) * 0.541196100;
@@ -274,13 +271,15 @@ EXTN(jsimd_fdct_islow_sse2):
     packssdw    m7, m6                   ; m7=data2
     packssdw    m4, m0                   ; m4=data6
 
-    SWAP 12, 7 ; movdqa      m12, m7     ; m12=data2
-    SWAP 13, 4 ; movdqa      m13, m4     ; m13=data6
+    SWAP 10, 3 ; movdqa      m10, m3     ; m10=data0                     ;  1  5  7 10  4  8  6  9    2  0  3 11 12 13 14
+    SWAP 11, 7 ; movdqa      m12, m7     ; m12=data2                     ;  1  5  7 10  4  8  6 11    2  0  3  9 12 13 14
+    SWAP 12, 1 ; movdqa      m11, m1     ; m11=data4                     ;  1 12  7 10  4  8  6 11    2  0  3  9  5 13 14
+    SWAP 13, 4 ; movdqa      m13, m4     ; m13=data6                     ;  1 12  7 10 13  8  6 11    2  0  3  9  5  4 14
 
     ; -- Odd part
 
-    SWAP  8, 3 ; movdqa      m3, m8      ; m3=tmp6
-    SWAP  9, 1 ; movdqa      m1, m9      ; m1=tmp7
+    SWAP  8, 3 ; movdqa      m3, m8      ; m3=tmp6                       ;  1 12  7  2 13  8  6 11   10  0  3  9  5  4 14
+    SWAP  9, 1 ; movdqa      m1, m9      ; m1=tmp7                       ;  1  0  7  2 13  8  6 11   10 12  3  9  5  4 14
 
     movdqa      m6, m2                   ; m2=tmp4
     movdqa      m0, m5                   ; m5=tmp5
@@ -307,8 +306,8 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m6, [rel PW_F117_F078]   ; m6=z4L
     pmaddwd     m0, [rel PW_F117_F078]   ; m0=z4H
 
-    SWAP  8, 7 ; movdqa      m8, m7      ; m8=z3L
-    SWAP  9, 4 ; movdqa      m9, m4      ; m9=z3H
+    SWAP  8, 7 ; movdqa      m8, m7      ; m8=z3L                       ;  1  0  7  2 13  8  6 10   11 12  3  9  5  4 14
+    SWAP  9, 4 ; movdqa      m9, m4      ; m9=z3H                       ;  1  0  7  2 12  8  6 10   11 13  3  9  5  4 14
 
     ; (Original)
     ; z1 = tmp4 + tmp7;  z2 = tmp5 + tmp6;
@@ -384,8 +383,8 @@ EXTN(jsimd_fdct_islow_sse2):
 
     ; ---- Pass 2: process columns.
 
-    SWAP 10, 6 ; movdqa      m6, m10     ; m6=col0
-    SWAP 12, 0 ; movdqa      m0, m12     ; m0=col2
+    SWAP 10, 6 ; movdqa      m6, m10     ; m6=col0                       ;  1  0  7  2 12  8  3 10   11 13  6  9  5  4 14
+    SWAP 11, 0 ; movdqa      m0, m12     ; m0=col2                       ;  9  0  7  2 12  8  3 10   11 13  6  1  5  4 14
 
     ; m6=(00 10 20 30 40 50 60 70), m0=(02 12 22 32 42 52 62 72)
     ; m2=(01 11 21 31 41 51 61 71), m5=(03 13 23 33 43 53 63 73)
@@ -397,14 +396,14 @@ EXTN(jsimd_fdct_islow_sse2):
     punpcklwd   m0, m5                   ; m0=(02 03 12 13 22 23 32 33)
     punpckhwd   m3, m5                   ; m3=(42 43 52 53 62 63 72 73)
 
-    SWAP 11, 2 ; movdqa      m2, m11     ; m2=col4
-    SWAP 13, 5 ; movdqa      m5, m13     ; m5=col6
+    SWAP 12, 2 ; movdqa      m2, m11     ; m2=col4                       ;  9  0  5  2 12  8  3 10   11 13  6  1  7  4 14
+    SWAP 13, 5 ; movdqa      m5, m13     ; m5=col6                       ;  9  0  5  2 12  4  3 10   11 13  6  1  7  8 14
 
     ; m2=(04 14 24 34 44 54 64 74), m5=(06 16 26 36 46 56 66 76)
     ; m4=(05 15 25 35 45 55 65 75), m7=(07 17 27 37 47 57 67 77)
 
-    SWAP  8, 0 ; movdqa      m8, m0      ; m8=(02 03 12 13 22 23 32 33)
-    SWAP  9, 3 ; movdqa      m9, m3      ; m9=(42 43 52 53 62 63 72 73)
+    SWAP 10, 0 ; movdqa      m10, m0     ; m10=(02 03 12 13 22 23 32 33) ;  6  0  5  2 12  4  3 10   11 13  9  1  7  8 14
+    SWAP 11, 3 ; movdqa      m11, m3     ; m11=(42 43 52 53 62 63 72 73) ;  6  0  5  1 12  4  3 10   11 13  9  2  7  8 14
 
     movdqa      m0, m2                   ; transpose coefficients(phase 1)
     punpcklwd   m2, m4                   ; m2=(04 05 14 15 24 25 34 35)
@@ -413,6 +412,8 @@ EXTN(jsimd_fdct_islow_sse2):
     punpcklwd   m5, m7                   ; m5=(06 07 16 17 26 27 36 37)
     punpckhwd   m3, m7                   ; m3=(46 47 56 57 66 67 76 77)
 
+    SWAP 12, 4                                                           ;  6  0  5  1  7  4  3 10   11 13  9  2 12  8 14
+
     movdqa      m4, m2                   ; transpose coefficients(phase 2)
     punpckldq   m2, m5                   ; m2=(04 05 06 07 14 15 16 17)
     punpckhdq   m4, m5                   ; m4=(24 25 26 27 34 35 36 37)
@@ -420,10 +421,10 @@ EXTN(jsimd_fdct_islow_sse2):
     punpckldq   m0, m3                   ; m0=(44 45 46 47 54 55 56 57)
     punpckhdq   m7, m3                   ; m7=(64 65 66 67 74 75 76 77)
 
-    SWAP  8, 5 ; movdqa      m5, m8      ; m5=(02 03 12 13 22 23 32 33)
-    SWAP  9, 3 ; movdqa      m3, m9      ; m3=(42 43 52 53 62 63 72 73)
-    SWAP 10, 4 ; movdqa      m10, m4     ; m10=(24 25 26 27 34 35 36 37)
-    SWAP 11, 0 ; movdqa      m11, m0     ; m11=(44 45 46 47 54 55 56 57)
+    SWAP 10, 5 ; movdqa      m5, m10     ; m5=(02 03 12 13 22 23 32 33)  ;  6  0  5  1  7  9  3 10   11 13  4  2 12  8 14
+    SWAP 11, 3 ; movdqa      m3, m11     ; m3=(42 43 52 53 62 63 72 73)  ;  6  0  5  2  7  9  3 10   11 13  4  1 12  8 14
+    SWAP 10, 4 ; movdqa      m10, m4     ; m10=(24 25 26 27 34 35 36 37) ;  6  0  5  2  4  9  3 10   11 13  7  1 12  8 14
+    SWAP 11, 0 ; movdqa      m11, m0     ; m11=(44 45 46 47 54 55 56 57) ;  1  0  5  2  4  9  3 10   11 13  7  6 12  8 14
 
     movdqa      m4, m6                   ; transpose coefficients(phase 2)
     punpckldq   m6, m5                   ; m6=(00 01 02 03 10 11 12 13)
@@ -446,10 +447,10 @@ EXTN(jsimd_fdct_islow_sse2):
     paddw       m2, m0                   ; m2=data1+data6=tmp1
     paddw       m7, m3                   ; m7=data0+data7=tmp0
 
-    SWAP 10, 0 ; movdqa      m0, m10     ; m0=(24 25 26 27 34 35 36 37)
-    SWAP 11, 3 ; movdqa      m3, m11     ; m3=(44 45 46 47 54 55 56 57)
-    SWAP  8, 5 ; movdqa      m8, m5      ; m8=tmp6
-    SWAP  9, 6 ; movdqa      m9, m6      ; m9=tmp7
+    SWAP 10, 0 ; movdqa      m0, m10     ; m0=(24 25 26 27 34 35 36 37)  ;  7  0  5  2  4  9  3 10   11 13  1  6 12  8 14
+    SWAP 11, 3 ; movdqa      m3, m11     ; m3=(44 45 46 47 54 55 56 57)  ;  7  0  5  6  4  9  3 10   11 13  1  2 12  8 14
+    SWAP 10, 5 ; movdqa      m10, m5     ; m10=tmp6                      ;  7  0  5  6  4  1  3 10   11 13  9  2 12  8 14
+    SWAP 11, 6 ; movdqa      m11, m6     ; m11=tmp7                      ;  7  0  5  6  4  1  2 10   11 13  9  3 12  8 14
 
     movdqa      m5, m4                   ; transpose coefficients(phase 3)
     punpcklqdq  m4, m0                   ; m4=(20 21 22 23 24 25 26 27)=data2
@@ -523,8 +524,8 @@ EXTN(jsimd_fdct_islow_sse2):
 
     ; -- Odd part
 
-    SWAP  8, 7 ; movdqa      m7, m8      ; m7=tmp6
-    SWAP  9, 5 ; movdqa      m5, m9      ; m5=tmp7
+    SWAP 10, 7 ; movdqa      m7, m10     ; m7=tmp6                       ;  7  0  5  6  4  1  2  9   11 13 10  3 12  8 14
+    SWAP 11, 5 ; movdqa      m5, m11     ; m5=tmp7                       ;  7  0  5  6  4  3  2  9   11 13 10  1 12  8 14
 
     movdqa      m2, m0                   ; m0=tmp4
     movdqa      m6, m3                   ; m3=tmp5
@@ -551,8 +552,8 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m2, [rel PW_F117_F078]   ; m2=z4L
     pmaddwd     m6, [rel PW_F117_F078]   ; m6=z4H
 
-    SWAP  8, 4 ; movdqa      m8, m4      ; m8=z3L
-    SWAP  9, 1 ; movdqa      m9, m1      ; m9=z3H
+    SWAP  8, 4 ; movdqa      m8, m4      ; m8=z3L                        ;  7  0  5  6 11  3  2  9    4 13 10  1 12  8 14
+    SWAP 11, 1 ; movdqa      m9, m1      ; m9=z3H                        ;  7  1  5  6 11  3  2  9    4 13 10  0 12  8 14
 
     ; (Original)
     ; z1 = tmp4 + tmp7;  z2 = tmp5 + tmp6;
@@ -582,7 +583,7 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m5, [rel PW_MF089_F060]  ; m5=tmp7H
 
     paddd       m4, m8                   ; m4=data7L
-    paddd       m1, m9                   ; m1=data7H
+    paddd       m1, m11                  ; m1=data7H
     paddd       m0, m2                   ; m0=data1L
     paddd       m5, m6                   ; m5=data1H
 
@@ -615,7 +616,8 @@ EXTN(jsimd_fdct_islow_sse2):
     paddd       m1, m2                   ; m1=data5L
     paddd       m5, m6                   ; m5=data5H
     paddd       m3, m8                   ; m3=data3L
-    paddd       m7, m9                   ; m7=data3H
+    SWAP 11, 7                                                           ;  7  1  5  6 11  3  2  0    4 13 10  9 12  8 14
+    paddd       m7, m11                  ; m7=data3H
 
     paddd       m1, [rel PD_DESCALE_P2]
     paddd       m5, [rel PD_DESCALE_P2]
