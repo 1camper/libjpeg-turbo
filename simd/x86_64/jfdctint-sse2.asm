@@ -110,27 +110,27 @@ PW_DESCALE_P2X times 8 dw  1 << (PASS1_BITS - 1)
 %define m13 xmm13
 %define m14 xmm14
 
-; r10 = DCTELEM *data
-
-%define wk(i)   rbp - (WK_NUM - (i)) * SIZEOF_XMMWORD  ; xmmword wk[WK_NUM]
-%define WK_NUM  6
-
     align       32
     GLOBAL_FUNCTION(jsimd_fdct_islow_sse2)
 
 EXTN(jsimd_fdct_islow_sse2):
-    push        rbp
-    mov         rax, rsp                     ; rax = original rbp
-    sub         rsp, byte 4
-    and         rsp, byte (-SIZEOF_XMMWORD)  ; align to 128 bits
-    mov         [rsp], rax
-    mov         rbp, rsp                     ; rbp = aligned rbp
-    lea         rsp, [wk(0)]
-    collect_args 1
+%ifdef WIN64
+    %define     data rcx
+    mov         rdx, rsp
+    add         rsp, 8 - 7 * SIZEOF_XMMWORD
+    movaps      [rdx + 8 - 7 * SIZEOF_XMMWORD], xmm6
+    movaps      [rdx + 8 - 6 * SIZEOF_XMMWORD], xmm7
+    movaps      [rdx + 8 - 5 * SIZEOF_XMMWORD], xmm8
+    movaps      [rdx + 8 - 4 * SIZEOF_XMMWORD], xmm9
+    movaps      [rdx + 8 - 3 * SIZEOF_XMMWORD], xmm10
+    movaps      [rdx + 8 - 2 * SIZEOF_XMMWORD], xmm11
+    movaps      [rdx + 8 + 0 * SIZEOF_XMMWORD], xmm12 ; shadow space
+    movaps      [rdx + 8 + 1 * SIZEOF_XMMWORD], xmm13
+%else
+    %define     data rdi
+%endif
 
     ; ---- Pass 1: process rows.
-%define data rdx
-    mov         data, r10                ; (DCTELEM *)
 
     movdqa      m0, XMMWORD [XMMBLOCK(0,0,data,SIZEOF_DCTELEM)]
     movdqa      m1, XMMWORD [XMMBLOCK(1,0,data,SIZEOF_DCTELEM)]
@@ -155,8 +155,8 @@ EXTN(jsimd_fdct_islow_sse2):
     ; m6=( 4 12 20 28 36 44 52 60), m1=( 6 14 22 30 38 46 54 62)
     ; m7=( 5 13 21 29 37 45 53 61), m3=( 7 15 23 31 39 47 55 63)
 
-    movdqa      XMMWORD [wk(0)], m2   ; wk(0)=(20 30 21 31 22 32 23 33)
-    movdqa      XMMWORD [wk(1)], m5   ; wk(1)=(24 34 25 35 26 36 27 37)
+    movdqa      m8, m2   ; m8=(20 30 21 31 22 32 23 33)
+    movdqa      m9, m5   ; m9=(24 34 25 35 26 36 27 37)
 
     movdqa      m2, m6              ; transpose coefficients(phase 1)
     punpcklwd   m6, m7              ; m6=(40 50 41 51 42 52 43 53)
@@ -172,10 +172,10 @@ EXTN(jsimd_fdct_islow_sse2):
     punpckldq   m2, m5              ; m2=(44 54 64 74 45 55 65 75)
     punpckhdq   m3, m5              ; m3=(46 56 66 76 47 57 67 77)
 
-    movdqa      m1, XMMWORD [wk(0)]   ; m1=(20 30 21 31 22 32 23 33)
-    movdqa      m5, XMMWORD [wk(1)]   ; m5=(24 34 25 35 26 36 27 37)
-    movdqa      XMMWORD [wk(2)], m7   ; wk(2)=(42 52 62 72 43 53 63 73)
-    movdqa      XMMWORD [wk(3)], m2   ; wk(3)=(44 54 64 74 45 55 65 75)
+    movdqa      m1, m8   ; m1=(20 30 21 31 22 32 23 33)
+    movdqa      m5, m9   ; m5=(24 34 25 35 26 36 27 37)
+    movdqa      m10, m7   ; m10=(42 52 62 72 43 53 63 73)
+    movdqa      m11, m2   ; m11=(44 54 64 74 45 55 65 75)
 
     movdqa      m7, m0              ; transpose coefficients(phase 2)
     punpckldq   m0, m1              ; m0=(00 10 20 30 01 11 21 31)
@@ -198,10 +198,10 @@ EXTN(jsimd_fdct_islow_sse2):
     paddw       m6, m2              ; m6=data1+data6=tmp1
     paddw       m3, m5              ; m3=data0+data7=tmp0
 
-    movdqa      m2, XMMWORD [wk(2)]   ; m2=(42 52 62 72 43 53 63 73)
-    movdqa      m5, XMMWORD [wk(3)]   ; m5=(44 54 64 74 45 55 65 75)
-    movdqa      XMMWORD [wk(0)], m1   ; wk(0)=tmp6
-    movdqa      XMMWORD [wk(1)], m0   ; wk(1)=tmp7
+    movdqa      m2, m10   ; m2=(42 52 62 72 43 53 63 73)
+    movdqa      m5, m11   ; m5=(44 54 64 74 45 55 65 75)
+    movdqa      m8, m1   ; m8=tmp6
+    movdqa      m9, m0   ; m9=tmp7
 
     movdqa      m1, m7              ; transpose coefficients(phase 3)
     punpcklqdq  m7, m2              ; m7=(02 12 22 32 42 52 62 72)=data2
@@ -233,8 +233,8 @@ EXTN(jsimd_fdct_islow_sse2):
     psllw       m3, PASS1_BITS        ; m3=data0
     psllw       m1, PASS1_BITS        ; m1=data4
 
-    movdqa      XMMWORD [wk(2)], m3   ; wk(2)=data0
-    movdqa      XMMWORD [wk(3)], m1   ; wk(3)=data4
+    movdqa      m10, m3   ; m10=data0
+    movdqa      m11, m1   ; m11=data4
 
     ; (Original)
     ; z1 = (tmp12 + tmp13) * 0.541196100;
@@ -268,13 +268,13 @@ EXTN(jsimd_fdct_islow_sse2):
     packssdw    m7, m6              ; m7=data2
     packssdw    m4, m0              ; m4=data6
 
-    movdqa      XMMWORD [wk(4)], m7   ; wk(4)=data2
-    movdqa      XMMWORD [wk(5)], m4   ; wk(5)=data6
+    movdqa      m12, m7   ; m12=data2
+    movdqa      m13, m4   ; m13=data6
 
     ; -- Odd part
 
-    movdqa      m3, XMMWORD [wk(0)]   ; m3=tmp6
-    movdqa      m1, XMMWORD [wk(1)]   ; m1=tmp7
+    movdqa      m3, m8   ; m3=tmp6
+    movdqa      m1, m9   ; m1=tmp7
 
     movdqa      m6, m2              ; m2=tmp4
     movdqa      m0, m5              ; m5=tmp5
@@ -301,8 +301,8 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m6, [rel PW_F117_F078]   ; m6=z4L
     pmaddwd     m0, [rel PW_F117_F078]   ; m0=z4H
 
-    movdqa      XMMWORD [wk(0)], m7   ; wk(0)=z3L
-    movdqa      XMMWORD [wk(1)], m4   ; wk(1)=z3H
+    movdqa      m8, m7   ; m8=z3L
+    movdqa      m9, m4   ; m9=z3H
 
     ; (Original)
     ; z1 = tmp4 + tmp7;  z2 = tmp5 + tmp6;
@@ -331,8 +331,8 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m2, [rel PW_MF089_F060]   ; m2=tmp7L
     pmaddwd     m1, [rel PW_MF089_F060]   ; m1=tmp7H
 
-    paddd       m7, XMMWORD [wk(0)]   ; m7=data7L
-    paddd       m4, XMMWORD [wk(1)]   ; m4=data7H
+    paddd       m7, m8   ; m7=data7L
+    paddd       m4, m9   ; m4=data7H
     paddd       m2, m6              ; m2=data1L
     paddd       m1, m0              ; m1=data1H
 
@@ -361,8 +361,8 @@ EXTN(jsimd_fdct_islow_sse2):
 
     paddd       m4, m6              ; m4=data5L
     paddd       m1, m0              ; m1=data5H
-    paddd       m5, XMMWORD [wk(0)]   ; m5=data3L
-    paddd       m3, XMMWORD [wk(1)]   ; m3=data3H
+    paddd       m5, m8   ; m5=data3L
+    paddd       m3, m9   ; m3=data3H
 
     paddd       m4, [rel PD_DESCALE_P1]
     paddd       m1, [rel PD_DESCALE_P1]
@@ -378,8 +378,8 @@ EXTN(jsimd_fdct_islow_sse2):
 
     ; ---- Pass 2: process columns.
 
-    movdqa      m6, XMMWORD [wk(2)]   ; m6=col0
-    movdqa      m0, XMMWORD [wk(4)]   ; m0=col2
+    movdqa      m6, m10   ; m6=col0
+    movdqa      m0, m12   ; m0=col2
 
     ; m6=(00 10 20 30 40 50 60 70), m0=(02 12 22 32 42 52 62 72)
     ; m2=(01 11 21 31 41 51 61 71), m5=(03 13 23 33 43 53 63 73)
@@ -391,14 +391,14 @@ EXTN(jsimd_fdct_islow_sse2):
     punpcklwd   m0, m5              ; m0=(02 03 12 13 22 23 32 33)
     punpckhwd   m3, m5              ; m3=(42 43 52 53 62 63 72 73)
 
-    movdqa      m2, XMMWORD [wk(3)]   ; m2=col4
-    movdqa      m5, XMMWORD [wk(5)]   ; m5=col6
+    movdqa      m2, m11   ; m2=col4
+    movdqa      m5, m13   ; m5=col6
 
     ; m2=(04 14 24 34 44 54 64 74), m5=(06 16 26 36 46 56 66 76)
     ; m4=(05 15 25 35 45 55 65 75), m7=(07 17 27 37 47 57 67 77)
 
-    movdqa      XMMWORD [wk(0)], m0   ; wk(0)=(02 03 12 13 22 23 32 33)
-    movdqa      XMMWORD [wk(1)], m3   ; wk(1)=(42 43 52 53 62 63 72 73)
+    movdqa      m8, m0   ; m8=(02 03 12 13 22 23 32 33)
+    movdqa      m9, m3   ; m9=(42 43 52 53 62 63 72 73)
 
     movdqa      m0, m2              ; transpose coefficients(phase 1)
     punpcklwd   m2, m4              ; m2=(04 05 14 15 24 25 34 35)
@@ -414,10 +414,10 @@ EXTN(jsimd_fdct_islow_sse2):
     punpckldq   m0, m3              ; m0=(44 45 46 47 54 55 56 57)
     punpckhdq   m7, m3              ; m7=(64 65 66 67 74 75 76 77)
 
-    movdqa      m5, XMMWORD [wk(0)]   ; m5=(02 03 12 13 22 23 32 33)
-    movdqa      m3, XMMWORD [wk(1)]   ; m3=(42 43 52 53 62 63 72 73)
-    movdqa      XMMWORD [wk(2)], m4   ; wk(2)=(24 25 26 27 34 35 36 37)
-    movdqa      XMMWORD [wk(3)], m0   ; wk(3)=(44 45 46 47 54 55 56 57)
+    movdqa      m5, m8   ; m5=(02 03 12 13 22 23 32 33)
+    movdqa      m3, m9   ; m3=(42 43 52 53 62 63 72 73)
+    movdqa      m10, m4   ; m10=(24 25 26 27 34 35 36 37)
+    movdqa      m11, m0   ; m11=(44 45 46 47 54 55 56 57)
 
     movdqa      m4, m6              ; transpose coefficients(phase 2)
     punpckldq   m6, m5              ; m6=(00 01 02 03 10 11 12 13)
@@ -440,10 +440,10 @@ EXTN(jsimd_fdct_islow_sse2):
     paddw       m2, m0              ; m2=data1+data6=tmp1
     paddw       m7, m3              ; m7=data0+data7=tmp0
 
-    movdqa      m0, XMMWORD [wk(2)]   ; m0=(24 25 26 27 34 35 36 37)
-    movdqa      m3, XMMWORD [wk(3)]   ; m3=(44 45 46 47 54 55 56 57)
-    movdqa      XMMWORD [wk(0)], m5   ; wk(0)=tmp6
-    movdqa      XMMWORD [wk(1)], m6   ; wk(1)=tmp7
+    movdqa      m0, m10   ; m0=(24 25 26 27 34 35 36 37)
+    movdqa      m3, m11   ; m3=(44 45 46 47 54 55 56 57)
+    movdqa      m8, m5   ; m8=tmp6
+    movdqa      m9, m6   ; m9=tmp7
 
     movdqa      m5, m4              ; transpose coefficients(phase 3)
     punpcklqdq  m4, m0              ; m4=(20 21 22 23 24 25 26 27)=data2
@@ -517,8 +517,8 @@ EXTN(jsimd_fdct_islow_sse2):
 
     ; -- Odd part
 
-    movdqa      m7, XMMWORD [wk(0)]   ; m7=tmp6
-    movdqa      m5, XMMWORD [wk(1)]   ; m5=tmp7
+    movdqa      m7, m8   ; m7=tmp6
+    movdqa      m5, m9   ; m5=tmp7
 
     movdqa      m2, m0              ; m0=tmp4
     movdqa      m6, m3              ; m3=tmp5
@@ -545,8 +545,8 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m2, [rel PW_F117_F078]   ; m2=z4L
     pmaddwd     m6, [rel PW_F117_F078]   ; m6=z4H
 
-    movdqa      XMMWORD [wk(0)], m4   ; wk(0)=z3L
-    movdqa      XMMWORD [wk(1)], m1   ; wk(1)=z3H
+    movdqa      m8, m4   ; m8=z3L
+    movdqa      m9, m1   ; m9=z3H
 
     ; (Original)
     ; z1 = tmp4 + tmp7;  z2 = tmp5 + tmp6;
@@ -575,8 +575,8 @@ EXTN(jsimd_fdct_islow_sse2):
     pmaddwd     m0, [rel PW_MF089_F060]   ; m0=tmp7L
     pmaddwd     m5, [rel PW_MF089_F060]   ; m5=tmp7H
 
-    paddd       m4,  XMMWORD [wk(0)]  ; m4=data7L
-    paddd       m1,  XMMWORD [wk(1)]  ; m1=data7H
+    paddd       m4,  m8  ; m4=data7L
+    paddd       m1,  m9  ; m1=data7H
     paddd       m0, m2              ; m0=data1L
     paddd       m5, m6              ; m5=data1H
 
@@ -608,8 +608,8 @@ EXTN(jsimd_fdct_islow_sse2):
 
     paddd       m1, m2              ; m1=data5L
     paddd       m5, m6              ; m5=data5H
-    paddd       m3, XMMWORD [wk(0)]   ; m3=data3L
-    paddd       m7, XMMWORD [wk(1)]   ; m7=data3H
+    paddd       m3, m8   ; m3=data3L
+    paddd       m7, m9   ; m7=data3H
 
     paddd       m1, [rel PD_DESCALE_P2]
     paddd       m5, [rel PD_DESCALE_P2]
@@ -626,10 +626,17 @@ EXTN(jsimd_fdct_islow_sse2):
     movdqa      XMMWORD [XMMBLOCK(5,0,data,SIZEOF_DCTELEM)], m1
     movdqa      XMMWORD [XMMBLOCK(3,0,data,SIZEOF_DCTELEM)], m3
 
-    uncollect_args 1
-    mov         rsp, rbp                ; rsp <- aligned rbp
-    pop         rsp                     ; rsp <- original rbp
-    pop         rbp
+%ifdef WIN64
+    movaps      xmm6, [rdx + 8 - 7 * SIZEOF_XMMWORD]
+    movaps      xmm7, [rdx + 8 - 6 * SIZEOF_XMMWORD]
+    movaps      xmm8, [rdx + 8 - 5 * SIZEOF_XMMWORD]
+    movaps      xmm9, [rdx + 8 - 4 * SIZEOF_XMMWORD]
+    movaps      xmm10, [rdx + 8 - 3 * SIZEOF_XMMWORD]
+    movaps      xmm11, [rdx + 8 - 2 * SIZEOF_XMMWORD]
+    movaps      xmm12, [rdx + 8 + 0 * SIZEOF_XMMWORD]
+    movaps      xmm13, [rdx + 8 + 1 * SIZEOF_XMMWORD]
+    mov         rsp, rdx
+%endif
     ret
 
 ; For some reason, the OS X linker does not honor the request to align the
