@@ -123,15 +123,16 @@ EXTN(jsimd_fdct_islow_sse2):
 %ifdef WIN64
     %define     data rcx
     mov         rdx, rsp
-    add         rsp, 8 - 7 * SIZEOF_XMMWORD
-    movaps      [rdx + 8 - 7 * SIZEOF_XMMWORD], xmm6
-    movaps      [rdx + 8 - 6 * SIZEOF_XMMWORD], xmm7
-    movaps      [rdx + 8 - 5 * SIZEOF_XMMWORD], xmm8
-    movaps      [rdx + 8 - 4 * SIZEOF_XMMWORD], xmm9
-    movaps      [rdx + 8 - 3 * SIZEOF_XMMWORD], xmm10
-    movaps      [rdx + 8 - 2 * SIZEOF_XMMWORD], xmm11
-    movaps      [rdx + 8 + 0 * SIZEOF_XMMWORD], xmm12 ; shadow space
-    movaps      [rdx + 8 + 1 * SIZEOF_XMMWORD], xmm13
+    add         rsp, 8 - 8 * SIZEOF_XMMWORD
+    movaps      [rdx + 8 - 8 * SIZEOF_XMMWORD], xmm6
+    movaps      [rdx + 8 - 7 * SIZEOF_XMMWORD], xmm7
+    movaps      [rdx + 8 - 6 * SIZEOF_XMMWORD], xmm8
+    movaps      [rdx + 8 - 5 * SIZEOF_XMMWORD], xmm9
+    movaps      [rdx + 8 - 4 * SIZEOF_XMMWORD], xmm10
+    movaps      [rdx + 8 - 3 * SIZEOF_XMMWORD], xmm11
+    movaps      [rdx + 8 - 2 * SIZEOF_XMMWORD], xmm12
+    movaps      [rdx + 8 + 0 * SIZEOF_XMMWORD], xmm13 ; shadow space
+    movaps      [rdx + 8 + 1 * SIZEOF_XMMWORD], xmm14
 %else
     %define     data rdi
 %endif
@@ -249,22 +250,31 @@ EXTN(jsimd_fdct_islow_sse2):
     ; data6 = tmp13 * 0.541196100 + tmp12 * (0.541196100 - 1.847759065);
 
     movdqa      m7, m4                   ; m4=tmp13
+
+    movaps      m12, XMMWORD [rel PW_F130_F054]
+
     movdqa      m6, m4
     punpcklwd   m7, m0                   ; m0=tmp12
     punpckhwd   m6, m0
+
+    movaps      m13, XMMWORD [rel PW_F054_MF130]
+
     movdqa      m4, m7
     movdqa      m0, m6
-    pmaddwd     m7, [rel PW_F130_F054]   ; m7=data2L
-    pmaddwd     m6, [rel PW_F130_F054]   ; m6=data2H
-    pmaddwd     m4, [rel PW_F054_MF130]  ; m4=data6L
-    pmaddwd     m0, [rel PW_F054_MF130]  ; m0=data6H
+    pmaddwd     m7, m12                  ; m7=data2L
 
-    paddd       m7, [rel PD_DESCALE_P1]
-    paddd       m6, [rel PD_DESCALE_P1]
+    movaps      m14, XMMWORD [rel PD_DESCALE_P1]
+
+    pmaddwd     m6, m12                  ; m6=data2H
+    pmaddwd     m4, m13                  ; m4=data6L
+    pmaddwd     m0, m13                  ; m0=data6H
+
+    paddd       m7, m14
+    paddd       m6, m14
     psrad       m7, DESCALE_P1
     psrad       m6, DESCALE_P1
-    paddd       m4, [rel PD_DESCALE_P1]
-    paddd       m0, [rel PD_DESCALE_P1]
+    paddd       m4, m14
+    paddd       m0, m14
     psrad       m4, DESCALE_P1
     psrad       m0, DESCALE_P1
 
@@ -295,16 +305,23 @@ EXTN(jsimd_fdct_islow_sse2):
     ; z3 = z3 * (1.175875602 - 1.961570560) + z4 * 1.175875602;
     ; z4 = z3 * 1.175875602 + z4 * (1.175875602 - 0.390180644);
 
+
     movdqa      m7, m6
     movdqa      m4, m6
+
+    movaps      m8, XMMWORD [rel PW_MF078_F117]
+
     punpcklwd   m7, m0
     punpckhwd   m4, m0
     movdqa      m6, m7
+
+    movaps      m9, XMMWORD [rel PW_F117_F078]
+
     movdqa      m0, m4
-    pmaddwd     m7, [rel PW_MF078_F117]  ; m7=z3L
-    pmaddwd     m4, [rel PW_MF078_F117]  ; m4=z3H
-    pmaddwd     m6, [rel PW_F117_F078]   ; m6=z4L
-    pmaddwd     m0, [rel PW_F117_F078]   ; m0=z4H
+    pmaddwd     m7, m8                   ; m7=z3L
+    pmaddwd     m4, m8                   ; m4=z3H
+    pmaddwd     m6, m9                   ; m6=z4L
+    pmaddwd     m0, m9                   ; m0=z4H
 
     SWAP  8, 7 ; movdqa      m8, m7      ; m8=z3L                       ;  1  0  7  2 13  8  6 10   11 12  3  9  5  4 14
     SWAP  9, 4 ; movdqa      m9, m4      ; m9=z3H                       ;  1  0  7  2 12  8  6 10   11 13  3  9  5  4 14
@@ -341,12 +358,12 @@ EXTN(jsimd_fdct_islow_sse2):
     paddd       m2, m6                   ; m2=data1L
     paddd       m1, m0                   ; m1=data1H
 
-    paddd       m7, [rel PD_DESCALE_P1]
-    paddd       m4, [rel PD_DESCALE_P1]
+    paddd       m7, m14
+    paddd       m4, m14
     psrad       m7, DESCALE_P1
     psrad       m4, DESCALE_P1
-    paddd       m2, [rel PD_DESCALE_P1]
-    paddd       m1, [rel PD_DESCALE_P1]
+    paddd       m2, m14
+    paddd       m1, m14
     psrad       m2, DESCALE_P1
     psrad       m1, DESCALE_P1
 
@@ -369,12 +386,12 @@ EXTN(jsimd_fdct_islow_sse2):
     paddd       m5, m8                   ; m5=data3L
     paddd       m3, m9                   ; m3=data3H
 
-    paddd       m4, [rel PD_DESCALE_P1]
-    paddd       m1, [rel PD_DESCALE_P1]
+    paddd       m4, m14
+    paddd       m1, m14
     psrad       m4, DESCALE_P1
     psrad       m1, DESCALE_P1
-    paddd       m5, [rel PD_DESCALE_P1]
-    paddd       m3, [rel PD_DESCALE_P1]
+    paddd       m5, m14
+    paddd       m3, m14
     psrad       m5, DESCALE_P1
     psrad       m3, DESCALE_P1
 
@@ -475,12 +492,14 @@ EXTN(jsimd_fdct_islow_sse2):
     psubw       m1, m5                   ; m1=tmp13
     psubw       m6, m4                   ; m6=tmp12
 
+    movaps      m8, [rel PW_DESCALE_P2X]
+
     movdqa      m5, m7
     paddw       m7, m2                   ; m7=tmp10+tmp11
     psubw       m5, m2                   ; m5=tmp10-tmp11
 
-    paddw       m7, [rel PW_DESCALE_P2X]
-    paddw       m5, [rel PW_DESCALE_P2X]
+    paddw       m7, m8
+    paddw       m5, m8
     psraw       m7, PASS1_BITS           ; m7=data0
     psraw       m5, PASS1_BITS           ; m5=data4
 
@@ -497,22 +516,31 @@ EXTN(jsimd_fdct_islow_sse2):
     ; data6 = tmp13 * 0.541196100 + tmp12 * (0.541196100 - 1.847759065);
 
     movdqa      m4, m1                   ; m1=tmp13
+
+    movaps      m8, [rel PW_F130_F054]
+
     movdqa      m2, m1
     punpcklwd   m4, m6                   ; m6=tmp12
     punpckhwd   m2, m6
+
+    movaps      m9, [rel PW_F054_MF130]
+
     movdqa      m1, m4
     movdqa      m6, m2
-    pmaddwd     m4, [rel PW_F130_F054]   ; m4=data2L
-    pmaddwd     m2, [rel PW_F130_F054]   ; m2=data2H
-    pmaddwd     m1, [rel PW_F054_MF130]  ; m1=data6L
-    pmaddwd     m6, [rel PW_F054_MF130]  ; m6=data6H
+    pmaddwd     m4, m8                   ; m4=data2L
 
-    paddd       m4, [rel PD_DESCALE_P2]
-    paddd       m2, [rel PD_DESCALE_P2]
+    movaps      m14, [rel PD_DESCALE_P2]
+
+    pmaddwd     m2, m8                   ; m2=data2H
+    pmaddwd     m1, m9                   ; m1=data6L
+    pmaddwd     m6, m9                   ; m6=data6H
+
+    paddd       m4, m14
+    paddd       m2, m14
     psrad       m4, DESCALE_P2
     psrad       m2, DESCALE_P2
-    paddd       m1, [rel PD_DESCALE_P2]
-    paddd       m6, [rel PD_DESCALE_P2]
+    paddd       m1, m14
+    paddd       m6, m14
     psrad       m1, DESCALE_P2
     psrad       m6, DESCALE_P2
 
@@ -543,17 +571,23 @@ EXTN(jsimd_fdct_islow_sse2):
 
     movdqa      m4, m2
     movdqa      m1, m2
+
+    movaps      m10, XMMWORD [rel PW_MF078_F117]
+
     punpcklwd   m4, m6
     punpckhwd   m1, m6
     movdqa      m2, m4
+
+    movaps      m11, XMMWORD [rel PW_F117_F078]
+
     movdqa      m6, m1
-    pmaddwd     m4, [rel PW_MF078_F117]  ; m4=z3L
-    pmaddwd     m1, [rel PW_MF078_F117]  ; m1=z3H
-    pmaddwd     m2, [rel PW_F117_F078]   ; m2=z4L
-    pmaddwd     m6, [rel PW_F117_F078]   ; m6=z4H
+    pmaddwd     m4, m10                  ; m4=z3L
+    pmaddwd     m1, m10                  ; m1=z3H
+    pmaddwd     m2, m11                  ; m2=z4L
+    pmaddwd     m6, m11                  ; m6=z4H
 
     SWAP  8, 4 ; movdqa      m8, m4      ; m8=z3L                        ;  7  0  5  6 11  3  2  9    4 13 10  1 12  8 14
-    SWAP 11, 1 ; movdqa      m9, m1      ; m9=z3H                        ;  7  1  5  6 11  3  2  9    4 13 10  0 12  8 14
+    SWAP 11, 1 ; movdqa      m11, m1     ; m11=z3H                       ;  7  1  5  6 11  3  2  9    4 13 10  0 12  8 14
 
     ; (Original)
     ; z1 = tmp4 + tmp7;  z2 = tmp5 + tmp6;
@@ -575,24 +609,30 @@ EXTN(jsimd_fdct_islow_sse2):
     movdqa      m1, m0
     punpcklwd   m4, m5
     punpckhwd   m1, m5
+
+    movaps      m9, XMMWORD [rel PW_MF060_MF089]
+
     movdqa      m0, m4
     movdqa      m5, m1
-    pmaddwd     m4, [rel PW_MF060_MF089] ; m4=tmp4L
-    pmaddwd     m1, [rel PW_MF060_MF089] ; m1=tmp4H
-    pmaddwd     m0, [rel PW_MF089_F060]  ; m0=tmp7L
-    pmaddwd     m5, [rel PW_MF089_F060]  ; m5=tmp7H
+    pmaddwd     m4, m9                   ; m4=tmp4L
+
+    movaps      m10, XMMWORD [rel PW_MF089_F060]
+
+    pmaddwd     m1, m9                   ; m1=tmp4H
+    pmaddwd     m0, m10                  ; m0=tmp7L
+    pmaddwd     m5, m10                  ; m5=tmp7H
 
     paddd       m4, m8                   ; m4=data7L
     paddd       m1, m11                  ; m1=data7H
     paddd       m0, m2                   ; m0=data1L
     paddd       m5, m6                   ; m5=data1H
 
-    paddd       m4, [rel PD_DESCALE_P2]
-    paddd       m1, [rel PD_DESCALE_P2]
+    paddd       m4, m14
+    paddd       m1, m14
     psrad       m4, DESCALE_P2
     psrad       m1, DESCALE_P2
-    paddd       m0, [rel PD_DESCALE_P2]
-    paddd       m5, [rel PD_DESCALE_P2]
+    paddd       m0, m14
+    paddd       m5, m14
     psrad       m0, DESCALE_P2
     psrad       m5, DESCALE_P2
 
@@ -604,27 +644,34 @@ EXTN(jsimd_fdct_islow_sse2):
 
     movdqa      m1, m3
     movdqa      m5, m3
+
+    movaps      m9, XMMWORD [rel PW_MF050_MF256]
+
     punpcklwd   m1, m7
     punpckhwd   m5, m7
     movdqa      m3, m1
+
+    movaps      m10, XMMWORD [rel PW_MF256_F050]
+
     movdqa      m7, m5
-    pmaddwd     m1, [rel PW_MF050_MF256] ; m1=tmp5L
-    pmaddwd     m5, [rel PW_MF050_MF256] ; m5=tmp5H
-    pmaddwd     m3, [rel PW_MF256_F050]  ; m3=tmp6L
-    pmaddwd     m7, [rel PW_MF256_F050]  ; m7=tmp6H
+    pmaddwd     m1, m9                   ; m1=tmp5L
+    pmaddwd     m5, m9                   ; m5=tmp5H
+    pmaddwd     m3, m10                  ; m3=tmp6L
+    pmaddwd     m7, m10                  ; m7=tmp6H
 
     paddd       m1, m2                   ; m1=data5L
     paddd       m5, m6                   ; m5=data5H
     paddd       m3, m8                   ; m3=data3L
+
     SWAP 11, 7                                                           ;  7  1  5  6 11  3  2  0    4 13 10  9 12  8 14
     paddd       m7, m11                  ; m7=data3H
 
-    paddd       m1, [rel PD_DESCALE_P2]
-    paddd       m5, [rel PD_DESCALE_P2]
+    paddd       m1, m14
+    paddd       m5, m14
     psrad       m1, DESCALE_P2
     psrad       m5, DESCALE_P2
-    paddd       m3, [rel PD_DESCALE_P2]
-    paddd       m7, [rel PD_DESCALE_P2]
+    paddd       m3, m14
+    paddd       m7, m14
     psrad       m3, DESCALE_P2
     psrad       m7, DESCALE_P2
 
@@ -635,14 +682,15 @@ EXTN(jsimd_fdct_islow_sse2):
     movdqa      XMMWORD [XMMBLOCK(3,0,data,SIZEOF_DCTELEM)], m3
 
 %ifdef WIN64
-    movaps      xmm6, [rdx + 8 - 7 * SIZEOF_XMMWORD]
-    movaps      xmm7, [rdx + 8 - 6 * SIZEOF_XMMWORD]
-    movaps      xmm8, [rdx + 8 - 5 * SIZEOF_XMMWORD]
-    movaps      xmm9, [rdx + 8 - 4 * SIZEOF_XMMWORD]
-    movaps      xmm10, [rdx + 8 - 3 * SIZEOF_XMMWORD]
-    movaps      xmm11, [rdx + 8 - 2 * SIZEOF_XMMWORD]
-    movaps      xmm12, [rdx + 8 + 0 * SIZEOF_XMMWORD]
-    movaps      xmm13, [rdx + 8 + 1 * SIZEOF_XMMWORD]
+    movaps      xmm6, [rdx + 8 - 8 * SIZEOF_XMMWORD]
+    movaps      xmm7, [rdx + 8 - 7 * SIZEOF_XMMWORD]
+    movaps      xmm8, [rdx + 8 - 6 * SIZEOF_XMMWORD]
+    movaps      xmm9, [rdx + 8 - 5 * SIZEOF_XMMWORD]
+    movaps      xmm10, [rdx + 8 - 4 * SIZEOF_XMMWORD]
+    movaps      xmm11, [rdx + 8 - 3 * SIZEOF_XMMWORD]
+    movaps      xmm12, [rdx + 8 - 2 * SIZEOF_XMMWORD]
+    movaps      xmm13, [rdx + 8 + 0 * SIZEOF_XMMWORD]
+    movaps      xmm14, [rdx + 8 + 1 * SIZEOF_XMMWORD]
     mov         rsp, rdx
 %endif
     ret
